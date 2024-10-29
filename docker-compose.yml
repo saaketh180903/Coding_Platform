@@ -1,0 +1,23 @@
+version: "3"
+
+services:
+  frontend:
+    # Build the frontend container using the Dockerfile in the frontend directory
+    build: ./client
+    # Map the frontend server port to a port on your host machine (e.g., 80:80)
+    ports:
+      - "3000:3000"
+
+  backend:
+    # Build the backend container using the Dockerfile in the backend directory
+    build: ./server
+    # Map the backend server port 3001 to port 3001 on your host machine
+    ports:
+      - "3001:3001"
+    # Add Docker volume to persist data
+    volumes:
+      - backend_data:/app/outputs
+
+# Define the Docker volume
+volumes:
+  backend_data:

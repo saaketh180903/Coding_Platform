@@ -1,0 +1,16 @@
+# Exclude Node.js related files
+node_modules
+npm-debug.log
+yarn-error.log
+yarn.lock
+
+# Exclude development and build files
+*.map
+
+# Exclude editor-specific files
+.DS_Store
+*.sublime*
+*.vscode*
+*.idea/
+*.swo
+*.swp
