@@ -61,42 +61,57 @@ const ProblemPage = () => {
     try {
       setIsLoading2(true);
       const inputToUse = fileInput || customInput;
-
+  
       const response = await axios.post('http://localhost:3001/RunCode', {
         code,
         input: inputToUse,
       });
+  
       setEditorAnnotations([]);
       setReceivedOutput(response.data.output);
       setExecutionTime(response.data.executionTime);
-    }
-      catch(error) {
+    } catch (error) {
       const errorMessage = error.response?.data?.error || 'Error compiling code';
-      setReceivedOutput(formatErrorMessage(errorMessage)); // Format error message
+      setReceivedOutput(formatErrorMessage(errorMessage));
       setExecutionTime(null);
-
-      // Extract line number and description from the error message (simplified)
-      const lineRegex = /:(\d+):\d+: (.+)/g; // Matches line number and error message
+  
+      // Updated regex to capture line and column numbers if available
+      const lineRegex = /:(\d+)(?::(\d+))?:\s+(.+)/g;
       let match;
       const newAnnotations = [];
-      
+  
       while ((match = lineRegex.exec(errorMessage)) !== null) {
-        const lineNumber = parseInt(match[1]) - 1; // Convert to zero-based index
-        const errorText = match[2]; // Error description
-
+        const lineNumber = parseInt(match[1], 10) - 1; // Zero-based index
+        const columnNumber = match[2] ? parseInt(match[2], 10) - 1 : 0; // Default to 0 if not available
+        const errorText = match[3];
+  
+        let finalColumnNumber = columnNumber;
+        if (!match[2]) {
+          const keywordMatch = errorText.match(/'([^']+)'/); // Extract problematic keyword
+          if (keywordMatch) {
+            const keyword = keywordMatch[1];
+            const lineContent = code.split('\n')[lineNumber];
+            const charIndex = lineContent.indexOf(keyword);
+            if (charIndex !== -1) {
+              finalColumnNumber = charIndex;
+            }
+          }
+        }
+  
         newAnnotations.push({
-          row: lineNumber, // Line number where error occurred (zero-indexed)
-          column: 0,       // Start highlighting at the first column
-          type: 'error',   // Annotation type (error, warning)
-          text: errorText, // Show error message
+          row: lineNumber,
+          column: finalColumnNumber,
+          type: 'error',
+          text: errorText,
         });
       }
+  
+      console.log("Annotations:", newAnnotations); // Debugging log
       setEditorAnnotations(newAnnotations);
-      }
-      setIsLoading2(false);
-
-    } ;
-
+    }
+    setIsLoading2(false);
+  };
+  
   const handleSubmit = async () => {
     try {
       setIsLoading1(true);
@@ -125,12 +140,16 @@ const ProblemPage = () => {
     return message
       .split('\n')
       .map((line) => {
-        const match = line.match(/:(\d+):\d+:\s+(.+)/);
-        return match ? `Line ${match[1]}: ${match[2]}` : '';
+        // Updated regex to capture both line and column numbers
+        const match = line.match(/:(\d+):(\d+):\s+(.+)/);
+        return match
+          ? `Line: ${match[1]}, char: ${match[2]}: ${match[3]}`
+          : '';
       })
       .filter(Boolean)
       .join('\n');
   };
+  
 
   const handleMySubmissions = async () => {
     try {

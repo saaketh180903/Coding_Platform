@@ -64,3 +64,9 @@ body {
   justify-content: space-between;
   margin-top: 20px;
 }
+/* ProblemPage.css */
+.error-marker {
+  position: absolute;
+  background-color: rgba(255, 0, 0, 0.2); /* Light red for highlighting */
+  border-bottom: 2px solid red; /* Red underline */
+}
