@@ -254,7 +254,7 @@ const ProblemPage = () => {
             <h4>Output</h4>
             <pre>{receivedOutput}</pre>
             <div className="execution-time">
-              <strong>Execution Time:</strong> {executionTime}
+              <strong>Execution Time:</strong> {executionTime} ms
             </div>
           </div>
 

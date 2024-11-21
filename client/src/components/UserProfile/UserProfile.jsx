@@ -17,25 +17,21 @@ const UserProfile = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `${token}` } };
+        const response = await axios.get('http://localhost:3001/UserProfile', config);
+
+        setUser(response.data.userobj);
+        setUserStats(response.data.userStats);
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+      }
+    };
+
     fetchUserProfile();
   }, []);
-
-  const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: {
-          Authorization: `${token}`,
-        },
-      };
-      const response = await axios.get('http://localhost:3001/UserProfile', config);
-      console.log(response.data)
-      setUser(response.data.userobj);
-      setUserStats(response.data.userStats);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -45,68 +41,55 @@ const UserProfile = () => {
   const handleAddProblem = async () => {
     try {
       const token = localStorage.getItem('token');
-      const config = {
-        headers: {
-          Authorization: `${token}`,
-        },
-      };
+      const config = { headers: { Authorization: `${token}` } };
 
-      // Send the problem data to the server
-      const response = await axios.post('http://localhost:3001/AddProblem', problemData, config);
-      console.log('Problem added:', response.data);
+      await axios.post('http://localhost:3001/AddProblem', problemData, config);
 
-      // You can perform any additional actions upon successful addition of the problem
       setShowAddProblem(false);
-      setProblemData({
-        title: '',
-        description: '',
-        acceptanceRate: '',
-        testCases: [{ input: '', expectedOutput: '' }],
-        difficulty: 'easy',
-      });
-      setError('');
-    } catch (error) {
-      console.error('Error adding problem:', error);
+      resetProblemForm();
+    } catch (err) {
+      console.error('Error adding problem:', err);
       setError('Failed to add problem');
     }
   };
 
+  const resetProblemForm = () => {
+    setProblemData({
+      title: '',
+      description: '',
+      acceptanceRate: '',
+      testCases: [{ input: '', expectedOutput: '' }],
+      difficulty: 'easy',
+    });
+    setError('');
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setProblemData((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+    setProblemData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleTestCaseChange = (index, field, value) => {
     const updatedTestCases = [...problemData.testCases];
     updatedTestCases[index][field] = value;
-    setProblemData((prevState) => ({
-      ...prevState,
-      testCases: updatedTestCases,
-    }));
+    setProblemData((prev) => ({ ...prev, testCases: updatedTestCases }));
   };
 
   const handleAddTestCase = () => {
-    setProblemData((prevState) => ({
-      ...prevState,
-      testCases: [...prevState.testCases, { input: '', expectedOutput: '' }],
+    setProblemData((prev) => ({
+      ...prev,
+      testCases: [...prev.testCases, { input: '', expectedOutput: '' }],
     }));
   };
 
   const handleRemoveTestCase = (index) => {
-    setProblemData((prevState) => ({
-      ...prevState,
-      testCases: prevState.testCases.filter((_, i) => i !== index),
+    setProblemData((prev) => ({
+      ...prev,
+      testCases: prev.testCases.filter((_, i) => i !== index),
     }));
   };
 
-  if (!user) {
-    return <p>Loading...</p>;
-  }
-
-  const isAdmin = user.isAdmin; // Check if the user is an admin
+  if (!user) return <p>Loading...</p>;
 
   return (
     <Container className="mt-4">
@@ -117,7 +100,7 @@ const UserProfile = () => {
               <h1>User Profile</h1>
               <Card.Title>Email</Card.Title>
               <Card.Text>{user.email}</Card.Text>
-              {isAdmin && (
+              {(user.isAdmin || user.isProblemSetter) && (
                 <Button variant="primary" onClick={() => setShowAddProblem(true)}>
                   Add Problem
                 </Button>
@@ -127,22 +110,24 @@ const UserProfile = () => {
               </Button>
             </Card.Body>
           </Card>
-          <div className="user-stats mt-4">
-            <h3>Your Progress</h3>
-            <p>
-              Easy Questions Solved: {userStats.numSolvedEasyQuestions} / {userStats.totalEasyQuestions}
-            </p>
-            <p>
-              Medium Questions Solved: {userStats.numSolvedMediumQuestions} / {userStats.totalMediumQuestions}
-            </p>
-            <p>
-              Hard Questions Solved: {userStats.numSolvedHardQuestions} / {userStats.totalHardQuestions}
-            </p>
-          </div>
+
+          {userStats && (
+            <div className="user-stats mt-4">
+              <h3>Your Progress</h3>
+              <p>
+                Easy: {userStats.numSolvedEasyQuestions} / {userStats.totalEasyQuestions}
+              </p>
+              <p>
+                Medium: {userStats.numSolvedMediumQuestions} / {userStats.totalMediumQuestions}
+              </p>
+              <p>
+                Hard: {userStats.numSolvedHardQuestions} / {userStats.totalHardQuestions}
+              </p>
+            </div>
+          )}
         </Col>
       </Row>
 
-      {/* Add Problem Modal */}
       <Modal show={showAddProblem} onHide={() => setShowAddProblem(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Add Problem</Modal.Title>
@@ -180,29 +165,31 @@ const UserProfile = () => {
             <h5>Test Cases</h5>
             {problemData.testCases.map((testCase, index) => (
               <div key={index}>
-                <Form.Group controlId={`input${index}`}>
+                <Form.Group controlId={`input-${index}`}>
                   <Form.Label>Input</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={3}
-                    name={`input${index}`}
+                    rows={2}
                     value={testCase.input}
                     onChange={(e) => handleTestCaseChange(index, 'input', e.target.value)}
                   />
                 </Form.Group>
-                <Form.Group controlId={`expectedOutput${index}`}>
+                <Form.Group controlId={`output-${index}`}>
                   <Form.Label>Expected Output</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={3}
-                    name={`expectedOutput${index}`}
+                    rows={2}
                     value={testCase.expectedOutput}
                     onChange={(e) => handleTestCaseChange(index, 'expectedOutput', e.target.value)}
                   />
                 </Form.Group>
                 {index > 0 && (
-                  <Button variant="danger" onClick={() => handleRemoveTestCase(index)}>
-                    Remove Test Case
+                  <Button
+                    variant="danger"
+                    onClick={() => handleRemoveTestCase(index)}
+                    className="mb-2"
+                  >
+                    Remove
                   </Button>
                 )}
               </div>
@@ -217,14 +204,13 @@ const UserProfile = () => {
                 name="difficulty"
                 value={problemData.difficulty}
                 onChange={handleChange}
-                defaultValue="easy"
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </Form.Control>
             </Form.Group>
-            {error && <p>Error: {error}</p>}
+            {error && <p className="text-danger mt-2">{error}</p>}
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -232,7 +218,7 @@ const UserProfile = () => {
             Cancel
           </Button>
           <Button variant="primary" onClick={handleAddProblem}>
-            Add Problem
+            Submit
           </Button>
         </Modal.Footer>
       </Modal>
