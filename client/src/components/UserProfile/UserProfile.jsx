@@ -153,15 +153,6 @@ const UserProfile = () => {
                 onChange={handleChange}
               />
             </Form.Group>
-            <Form.Group controlId="acceptanceRate">
-              <Form.Label>Acceptance Rate</Form.Label>
-              <Form.Control
-                type="text"
-                name="acceptanceRate"
-                value={problemData.acceptanceRate}
-                onChange={handleChange}
-              />
-            </Form.Group>
             <h5>Test Cases</h5>
             {problemData.testCases.map((testCase, index) => (
               <div key={index}>

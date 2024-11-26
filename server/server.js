@@ -178,13 +178,12 @@ app.get("/UserProfile", auth, async (req, res) => {
 app.post('/AddProblem', async (req, res) => {
   try {
     // Extract the problem data from the request body
-    const { title, description, acceptanceRate, testCases, difficulty } = req.body;
+    const { title, description, testCases, difficulty } = req.body;
 
     // Create a new problem instance
     const newProblem = new Problem_Schema({
       title,
       description,
-      "acceptance": acceptanceRate,
       testCases,
       difficulty,
     });
