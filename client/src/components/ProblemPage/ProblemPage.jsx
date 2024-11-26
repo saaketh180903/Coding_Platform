@@ -283,7 +283,7 @@ const ProblemPage = () => {
         </div>
 
         {selectedSubmission && (
-        <Modal show={showModal} onHide={closeModal} style={{ maxWidth: '2400px', margin: 'auto' }}>
+        <Modal show={showModal} onHide={closeModal} style={{ maxWidth: '2400px', margin: 'auto' ,color: (selectedSubmission.verdict==="Accepted")?'#23d96c':'#db2332'}}>
           <Modal.Header closeButton>
             <Modal.Title>Code Link and Test Results</Modal.Title>
           </Modal.Header>
