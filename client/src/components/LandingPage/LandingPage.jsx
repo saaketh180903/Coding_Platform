@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Container, Table } from 'react-bootstrap';
 import axios from 'axios';
-import './LandingPage.css'
+import './LandingPage.css';
 
 const LandingPage = () => {
   const [problems, setProblems] = useState([]);
@@ -38,7 +38,7 @@ const LandingPage = () => {
             <tr key={problem._id}>
               <td>{problem.title}</td>
               <td>{problem.difficulty}</td>
-              <td>{problem.acceptance}</td>
+              <td>{problem.acceptance.toFixed(2)}%</td>
               <td>
                 <Link to={`/ProblemPage/${problem._id}`} className="btn btn-primary">
                   View Problem
