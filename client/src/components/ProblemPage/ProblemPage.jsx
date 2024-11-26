@@ -21,6 +21,7 @@ const ProblemPage = () => {
   const [executionTime, setExecutionTime] = useState('');
   const [isLoading1, setIsLoading1] = useState(false);
   const [isLoading2, setIsLoading2] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editorAnnotations, setEditorAnnotations] = useState([]); // To highlight error lines
 
   const defaultCode = `#include <stdio.h>\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}`;
@@ -129,11 +130,16 @@ const ProblemPage = () => {
       );
 
       toast.success('Code submitted successfully!');
+      setShowModal(true);
     } catch (error) {
       toast.error('Failed to submit code.');
     } finally {
       setIsLoading1(false);
     }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
   };
 
   const formatErrorMessage = (message) => {
@@ -268,6 +274,8 @@ const ProblemPage = () => {
           </div>
         </div>
       </div>
+
+    
 
       <ToastContainer />
     </div>

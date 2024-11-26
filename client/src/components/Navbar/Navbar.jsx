@@ -9,7 +9,7 @@ function Navbarfunc() {
   return (
     <Navbar bg="dark" variant="dark" expand="lg" className="custom-navbar">
       <Container>
-        <Navbar.Brand href="/">Code Master</Navbar.Brand>
+        <Navbar.Brand href="/">PPS Lab</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ml-auto">

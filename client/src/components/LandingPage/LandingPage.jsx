@@ -22,7 +22,7 @@ const LandingPage = () => {
 
   return (
     <Container>
-      <h1 className="text-center my-4">Welcome to My Coding Website!</h1>
+      <h1 className="text-center my-4">Welcome to PPS Lab!!!</h1>
 
       <Table striped bordered hover>
         <thead>
