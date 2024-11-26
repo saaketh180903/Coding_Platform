@@ -8,6 +8,8 @@ import 'ace-builds/src-noconflict/theme-monokai';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './ProblemPage.css';
+import { Form, Table, Modal } from 'react-bootstrap';
+
 
 const ProblemPage = () => {
   const { pid } = useParams();
@@ -22,8 +24,9 @@ const ProblemPage = () => {
   const [isLoading1, setIsLoading1] = useState(false);
   const [isLoading2, setIsLoading2] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [editorAnnotations, setEditorAnnotations] = useState([]); // To highlight error lines
-
+  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
   const defaultCode = `#include <stdio.h>\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}`;
 
   useEffect(() => {
@@ -118,7 +121,7 @@ const ProblemPage = () => {
       setIsLoading1(true);
       const token = localStorage.getItem('token');
 
-      await axios.post(
+      const response=await axios.post(
         'http://localhost:3001/ProblemSubmission',
         {
           title: problem.title,
@@ -130,7 +133,7 @@ const ProblemPage = () => {
       );
 
       toast.success('Code submitted successfully!');
-      setShowModal(true);
+      openModal(response.data.submission);
     } catch (error) {
       toast.error('Failed to submit code.');
     } finally {
@@ -138,10 +141,15 @@ const ProblemPage = () => {
     }
   };
 
-  const closeModal = () => {
-    setShowModal(false);
+  const openModal = (submission) => {
+    setSelectedSubmission(submission);
+    setShowModal(true);
   };
 
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedSubmission(null);
+  };
   const formatErrorMessage = (message) => {
     return message
       .split('\n')
@@ -273,8 +281,47 @@ const ProblemPage = () => {
             </Button>
           </div>
         </div>
-      </div>
 
+        {selectedSubmission && (
+        <Modal show={showModal} onHide={closeModal} style={{ maxWidth: '2400px', margin: 'auto' }}>
+          <Modal.Header closeButton>
+            <Modal.Title>Code Link and Test Results</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>User: {selectedSubmission.username}</p>
+            <p>Title: {selectedSubmission.title}</p>
+            <p>
+              Code Link: <pre>{selectedSubmission.codelink}</pre>
+            </p>
+
+            <h3>Test Results:</h3>
+            <ul>
+              {selectedSubmission.tests.map((test, index) => (
+                <li key={index}>
+                  <strong>Test {index + 1}:</strong>
+                  <ul>
+                    <li>
+                      Input: <pre>{test.input}</pre>
+                    </li>
+                    <li>
+                      Generated Output: <pre>{test.generatedOutput}</pre>
+                    </li>
+                    <li>
+                      Expected Output: <pre>{test.expectedOutput}</pre>
+                    </li>
+                    <li>
+                      Result: <pre>{test.resultoftestcase}</pre>
+                    </li>
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </Modal.Body>
+        </Modal>
+      )}
+
+      </div>
+      
     
 
       <ToastContainer />
