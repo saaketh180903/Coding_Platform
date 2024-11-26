@@ -290,6 +290,7 @@ const ProblemPage = () => {
           <Modal.Body>
             <p>User: {selectedSubmission.username}</p>
             <p>Title: {selectedSubmission.title}</p>
+            <p>Verdict: {selectedSubmission.verdict}</p>
             <p>
               Code Link: <pre>{selectedSubmission.codelink}</pre>
             </p>

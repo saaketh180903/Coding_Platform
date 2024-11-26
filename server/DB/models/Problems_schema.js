@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 const problemschema = new mongoose.Schema({
     title: {
         type: String,
@@ -9,8 +10,16 @@ const problemschema = new mongoose.Schema({
         required: true,
     },
     acceptance: {
-        type: String,
-        required: true
+        type: Number, // Changed to Number to store accuracy as a percentage
+        default: 0.0, // Default value
+    },
+    totalSubmissions: {
+        type: Number, // Total number of submissions
+        default: 0,
+    },
+    successfulSubmissions: {
+        type: Number, // Total number of accepted submissions
+        default: 0,
     },
     testCases: [
         {
@@ -28,7 +37,7 @@ const problemschema = new mongoose.Schema({
         type: String,
         required: true,
     }
-})
+});
 
 const Problem_Schema = mongoose.model('Problem_Schema', problemschema);
 

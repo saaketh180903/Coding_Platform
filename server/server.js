@@ -425,6 +425,18 @@ app.post("/ProblemSubmission", auth, async (req, res) => {
     // Determine overall verdict
     const verdict = isAllCorrect ? "Accepted" : "Rejected";
 
+    // Update problem statistics
+    problem.totalSubmissions += 1;
+    if (verdict === "Accepted") {
+      problem.successfulSubmissions += 1;
+    }
+    problem.acceptance = parseFloat(
+      ((problem.successfulSubmissions / problem.totalSubmissions) * 100).toFixed(2)
+    );
+
+    // Save updated problem stats
+    await problem.save();
+
     // Delete generated file
     fs.unlink(filePath, () => {});
 
