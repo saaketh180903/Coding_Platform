@@ -111,28 +111,68 @@ app.get('/Problem/:id', async (req, res) => {
 
 
 app.get("/UserProfile", auth, async (req, res) => {
-  const userobj=req.USER_DETAILS;
-  console.log('hi')
-  console.log(userobj)
-  const totalEasyQuestions = await Problem_Schema.countDocuments({ difficulty: 'easy' });
-  const totalMediumQuestions = await Problem_Schema.countDocuments({ difficulty: 'medium' });
-  const totalHardQuestions = await Problem_Schema.countDocuments({ difficulty: 'hard' });
+  try {
+    const userobj = req.USER_DETAILS;
 
-  // Fetch the number of questions solved by the user in each category
-  console.log(userobj.email);
-  const solvedEasyQuestions = await Submission_Schema.distinct('title', { username: userobj.email.toString() , verdict: 'Accepted', difficulty: 'easy' });
-  const solvedMediumQuestions = await Submission_Schema.distinct('title', { username: userobj.email.toString() , verdict: 'Accepted', difficulty: 'medium' });
-  const solvedHardQuestions = await Submission_Schema.distinct('title', { username: userobj.email.toString() , verdict: 'Accepted', difficulty: 'hard' });
+    console.log('hi');
+    console.log(userobj);
 
-  // Count the number of unique problems solved by the user in each category
-  const numSolvedEasyQuestions = solvedEasyQuestions.length;
-  const numSolvedMediumQuestions = solvedMediumQuestions.length;
-  const numSolvedHardQuestions = solvedHardQuestions.length;
+    // Normalize user data to handle missing fields and MongoDB flexibility
+    const normalizedUser = {
+      _id: userobj._id?.toString() || '',
+      email: userobj.email || '',
+      password: userobj.password || '',
+      isAdmin: userobj.isAdmin || false,
+      isProblemSetter: userobj.isProblemSetter || false,
+    };
 
+    // Fetch total number of questions by difficulty
+    const totalEasyQuestions = await Problem_Schema.countDocuments({ difficulty: 'easy' });
+    const totalMediumQuestions = await Problem_Schema.countDocuments({ difficulty: 'medium' });
+    const totalHardQuestions = await Problem_Schema.countDocuments({ difficulty: 'hard' });
 
-  const userStats={totalEasyQuestions, totalMediumQuestions, totalHardQuestions, numSolvedEasyQuestions, numSolvedMediumQuestions, numSolvedHardQuestions};
-  res.json({ userobj , userStats});
-})
+    // Fetch the number of questions solved by the user in each category
+    console.log(normalizedUser.email);
+
+    const solvedEasyQuestions = await Submission_Schema.distinct('title', {
+      username: normalizedUser.email.toString(),
+      verdict: 'Accepted',
+      difficulty: 'easy',
+    });
+
+    const solvedMediumQuestions = await Submission_Schema.distinct('title', {
+      username: normalizedUser.email.toString(),
+      verdict: 'Accepted',
+      difficulty: 'medium',
+    });
+
+    const solvedHardQuestions = await Submission_Schema.distinct('title', {
+      username: normalizedUser.email.toString(),
+      verdict: 'Accepted',
+      difficulty: 'hard',
+    });
+
+    // Count the number of unique problems solved by the user in each category
+    const numSolvedEasyQuestions = solvedEasyQuestions.length;
+    const numSolvedMediumQuestions = solvedMediumQuestions.length;
+    const numSolvedHardQuestions = solvedHardQuestions.length;
+
+    const userStats = {
+      totalEasyQuestions,
+      totalMediumQuestions,
+      totalHardQuestions,
+      numSolvedEasyQuestions,
+      numSolvedMediumQuestions,
+      numSolvedHardQuestions,
+    };
+
+    res.json({ userobj: normalizedUser, userStats });
+  } catch (error) {
+    console.error('Error in /UserProfile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 
 app.post('/AddProblem', async (req, res) => {
@@ -173,80 +213,97 @@ app.post("/mys", auth , async (req, res) => {
 
 app.post('/RunCode', async (req, res) => {
   let programProcess = null;
+  let responseSent = false; // Flag to prevent multiple responses
 
-  const { code, input } = req.body; // Destructure code and single input from the request body
-
-  console.log("Incoming Request Body:", req.body); // Log the incoming request
+  const { code, input } = req.body;
 
   if (!code) {
-      return res.status(400).json({ error: 'No code provided' });
+    return res.status(400).json({ error: 'No code provided' });
   }
 
   if (typeof input === 'undefined') {
-      return res.status(400).json({ error: 'No input provided' });
+    return res.status(400).json({ error: 'No input provided' });
   }
 
   try {
-      const filePath = await generateFile('c',code);  // Generate the source file
-      const jobId = path.basename(filePath).split('.')[0]; // Extract job ID from file name
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      const outPath = path.join(__dirname, 'outputs', `${jobId}`); // Define the output path
+    const filePath = await generateFile('c', code);
+    const jobId = path.basename(filePath).split('.')[0];
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const outPath = path.join(__dirname, 'outputs', `${jobId}`);
 
-      // Compile the C code using gcc
-      exec(`gcc "${filePath}" -o "${outPath}"`, (error, stdout, stderr) => {
-          if (error || stderr) {
-              const errorMessage = stderr
-                  .split('\n')
-                  .filter(line => line.includes(':'))
-                  .map(line => line.trim())
-                  .join('\n');
-                  console.log(errorMessage)
-              return res.status(500).json({ error: errorMessage || 'Compilation failed with an unknown error.' });
-          }
+    exec(`gcc "${filePath}" -o "${outPath}"`, (error, stdout, stderr) => {
+      if (responseSent) return;
 
-          const runCmd = process.platform === 'win32' ? `${outPath}.exe` : `./${outPath}`; // Handle executable command for different platforms
+      if (error || stderr) {
+        responseSent = true;
+        const errorMessage = stderr
+          .split('\n')
+          .filter(line => line.includes(':'))
+          .map(line => line.trim())
+          .join('\n');
+        return res.status(500).json({ error: errorMessage || 'Compilation failed with an unknown error.' });
+      }
 
-          const startTime = Date.now(); // Start measuring execution time
+      const runCmd = process.platform === 'win32' ? `${outPath}.exe` : `./${outPath}`;
+      const startTime = Date.now();
 
-          // Run the compiled program
-          programProcess = spawn(runCmd, { cwd: path.join(__dirname, 'outputs') });
+      programProcess = spawn(runCmd, { cwd: path.join(__dirname, 'outputs') });
 
-          // Write input to the program's stdin
-          if (input) {
-              programProcess.stdin.write(`${input}\n`);
-          }
+      const timeout = setTimeout(() => {
+        if (programProcess && !responseSent) {
+          programProcess.kill(); // Terminate process
+          programProcess = null;
+          responseSent = true;
+          return res.status(408).json({ error: 'Execution timed out' });
+        }
+      }, 5000); // Timeout duration
 
-          let output = '';  // Store the output
+      if (input) {
+        programProcess.stdin.write(`${input}\n`);
+      }
 
-          // Capture stdout (standard output)
-          programProcess.stdout.on('data', (data) => {
-              output += data.toString();
-          });
+      let output = '';
 
-          // Capture stderr (standard error)
-          programProcess.stderr.on('data', (data) => {
-              output += `Error: ${data.toString()}`;
-          });
-
-          // When the process finishes
-          programProcess.on('close', () => {
-              const endTime = Date.now();  // End measuring time
-              const executionTime = endTime - startTime;  // Calculate the execution time
-              programProcess = null;
-
-              // Return the output and execution time
-              res.json({ output, executionTime });
-          });
+      programProcess.stdout.on('data', (data) => {
+        output += data.toString();
       });
+
+      programProcess.stderr.on('data', (data) => {
+        output += `Error: ${data.toString()}`;
+      });
+
+      programProcess.on('close', () => {
+        if (responseSent) return; // Avoid duplicate response
+        clearTimeout(timeout); // Clear timeout
+        const endTime = Date.now();
+        const executionTime = endTime - startTime;
+        programProcess = null;
+        responseSent = true;
+        return res.json({ output, executionTime });
+      });
+
+      programProcess.on('error', (err) => {
+        if (responseSent) return; // Avoid duplicate response
+        clearTimeout(timeout); // Clear timeout
+        responseSent = true;
+        return res.status(500).json({ error: 'Failed to execute the program', details: err.message });
+      });
+    });
   } catch (error) {
+    if (!responseSent) {
+      responseSent = true;
       console.error("Error running code:", error);
-      res.status(500).json({ error: "Failed to run code" });
+      return res.status(500).json({ error: "Failed to run code" });
+    }
   }
 });
 
 
+
+
 app.post("/ProblemSubmission", auth, async (req, res) => {
+  let responseSent = false; // Flag to prevent multiple responses
   const { title, code, language, difficulty } = req.body;
 
   try {
@@ -254,47 +311,37 @@ app.post("/ProblemSubmission", auth, async (req, res) => {
     const problem = await Problem_Schema.findOne({ title });
 
     if (!problem) {
-      return res.status(404).json({ error: 'Problem not found' });
+      return res.status(404).json({ error: "Problem not found" });
     }
 
     // Generate file based on language and code
-    let filePath;
-    if (language === "cpp") {
-      filePath = await generateFile("cpp", code);
-    } else if (language === "java") {
-      filePath = await generateFile("java", code);
-    } else if (language === 'c') {
-      filePath = await generateFile('c', code);
-    } else if (language === "python") {
-      filePath = await generateFile("py", code);
-    } else {
-      throw new Error("Unsupported language");
+    const filePath = await generateFile(language, code);
+    if (!filePath) {
+      throw new Error("Unsupported language or file generation failed");
     }
 
-    // Execute code for all test cases and compare output with expected output
     const tests = [];
     let isAllCorrect = true;
 
     for (const testCase of problem.testCases) {
       const { input, expectedOutput } = testCase;
-      let output;
+      let outputBuffer = "";
 
-      // Here is where we compile and run the code similarly to /RunCode
-      const jobId = path.basename(filePath).split('.')[0];
+      const jobId = path.basename(filePath).split(".")[0];
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      const outPath = path.join(__dirname, 'outputs', `${jobId}`);
+      const outPath = path.join(__dirname, "outputs", `${jobId}`);
 
-      // Compile the C code using gcc
+      // Compile the code
       const compileError = await new Promise((resolve) => {
         exec(`gcc "${filePath}" -o "${outPath}"`, (error, stdout, stderr) => {
           if (error || stderr) {
             const errorMessage = stderr
-              .split('\n')
-              .filter(line => line.includes(':'))
-              .map(line => line.trim())
-              .join('\n');
-            resolve({ error: errorMessage || 'Compilation failed with an unknown error.' });
+              .split("\n")
+              .filter((line) => line.includes(":"))
+              .map((line) => line.trim())
+              .join("\n");
+            resolve({ error: errorMessage || "Compilation failed with an unknown error." });
           } else {
             resolve(null);
           }
@@ -302,38 +349,54 @@ app.post("/ProblemSubmission", auth, async (req, res) => {
       });
 
       if (compileError) {
-        return res.status(500).json({ error: compileError.error });
+        if (!responseSent) {
+          responseSent = true;
+          return res.status(500).json({ error: compileError.error });
+        }
+        return;
       }
 
-      const runCmd = process.platform === 'win32' ? `${outPath}.exe` : `./${outPath}`;
-      let outputBuffer = '';
-      
-      // Run the compiled program
-      const programProcess = spawn(runCmd, { cwd: path.join(__dirname, 'outputs') });
+      const runCmd = process.platform === "win32" ? `${outPath}.exe` : `./${outPath}`;
+      let programProcess = spawn(runCmd, { cwd: path.join(__dirname, "outputs") });
 
-      // Write input to the program's stdin
+      // Timeout logic
+      const timeout = setTimeout(() => {
+        if (programProcess) {
+          programProcess.kill(); // Terminate the process on timeout
+          tests.push({
+            input,
+            generatedOutput: "Execution Timed Out",
+            expectedOutput,
+            resultoftestcase: "Timeout",
+          });
+          isAllCorrect = false;
+          programProcess = null; // Ensure programProcess is nullified
+        }
+      }, 5000);
+
       if (input) {
         programProcess.stdin.write(`${input}\n`);
-        programProcess.stdin.end(); // Close stdin after writing input
+        programProcess.stdin.end(); // Close stdin
       }
 
       // Capture stdout and stderr
-      programProcess.stdout.on('data', (data) => {
+      programProcess.stdout.on("data", (data) => {
         outputBuffer += data.toString();
       });
 
-      programProcess.stderr.on('data', (data) => {
+      programProcess.stderr.on("data", (data) => {
         outputBuffer += `Error: ${data.toString()}`;
       });
 
-      // Wait for the process to finish
+      // Wait for process to finish or timeout
       await new Promise((resolve) => {
-        programProcess.on('close', () => {
+        programProcess.on("close", () => {
+          clearTimeout(timeout); // Clear the timeout if execution finishes
           const isCorrect = outputBuffer.trim() === expectedOutput.trim();
-          
+
           tests.push({
             input,
-            generatedOutput: outputBuffer,
+            generatedOutput: outputBuffer || "No Output",
             expectedOutput,
             resultoftestcase: isCorrect ? "Accepted" : "Rejected",
           });
@@ -342,7 +405,18 @@ app.post("/ProblemSubmission", auth, async (req, res) => {
             isAllCorrect = false;
           }
 
-          // Resolve the promise when done
+          resolve();
+        });
+
+        programProcess.on("error", () => {
+          clearTimeout(timeout);
+          isAllCorrect = false;
+          tests.push({
+            input,
+            generatedOutput: "Error occurred during execution",
+            expectedOutput,
+            resultoftestcase: "Error",
+          });
           resolve();
         });
       });
@@ -367,12 +441,19 @@ app.post("/ProblemSubmission", auth, async (req, res) => {
 
     // Save the submission to the database
     const savedSubmission = await newPS.save();
-    res.json({ submission: savedSubmission });
+    if (!responseSent) {
+      responseSent = true;
+      return res.json({ submission: savedSubmission });
+    }
   } catch (error) {
-    console.error("Error saving submission:", error);
-    res.status(500).json({ error: "Failed to save submission" });
+    if (!responseSent) {
+      responseSent = true;
+      console.error("Error saving submission:", error);
+      res.status(500).json({ error: "Failed to save submission" });
+    }
   }
 });
+
 
 
 

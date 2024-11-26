@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-
   email: {
     type: String,
     required: true,
@@ -13,8 +12,12 @@ const userSchema = new mongoose.Schema({
   },
   isAdmin: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
+  isProblemSetter: {
+    type: Boolean,
+    default: false, // Default value
+  },
 });
 
 const User = mongoose.model('User', userSchema);
